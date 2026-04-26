@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Anonymous user profile data",
+      "type": "object",
+      "properties": {
+        "anonymousName": { "type": "string" },
+        "avatarId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isVolunteer": { "type": "boolean" }
+      },
+      "required": ["anonymousName", "avatarId", "createdAt"]
+    },
+    "SupportCircle": {
+      "title": "Support Circle",
+      "description": "A group for anonymous voice support",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "isActive": { "type": "boolean" },
+        "participantCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "moderatorId": { "type": "string" }
+      },
+      "required": ["title", "description", "isActive", "participantCount", "createdAt"]
+    },
+    "CircleMember": {
+      "title": "Circle Member",
+      "description": "Member of a support circle",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "isSpeaking": { "type": "boolean" }
+      },
+      "required": ["userId", "joinedAt"]
+    },
+    "VoiceSession": {
+      "title": "Voice Session",
+      "description": "1-on-1 private voice session",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["pending", "active", "ended"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastUpdateTime": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participants", "status", "createdAt"]
+    },
+    "AppEvent": {
+      "title": "App Event",
+      "description": "Real-time signaling or messages",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "type": { "type": "string", "enum": ["signal", "message", "join", "leave"] },
+        "payload": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "type", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Store anonymous user profiles"
+    },
+    "/circles/{circleId}": {
+      "schema": "SupportCircle",
+      "description": "Store support groups"
+    },
+    "/circles/{circleId}/members/{userId}": {
+      "schema": "CircleMember",
+      "description": "Track members of a circle"
+    },
+    "/circles/{circleId}/events/{eventId}": {
+      "schema": "AppEvent",
+      "description": "Real-time updates for a circle"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "VoiceSession",
+      "description": "Store private 1-on-1 sessions"
+    },
+    "/sessions/{sessionId}/events/{eventId}": {
+      "schema": "AppEvent",
+      "description": "Real-time signaling for private sessions"
+    }
+  }
+}

@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny ALL
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validations
+    function isValidUser(data) {
+      return data.keys().hasAll(['anonymousName', 'avatarId', 'createdAt']) &&
+             data.keys().size() <= 5 &&
+             data.anonymousName is string && data.anonymousName.size() <= 50 &&
+             data.avatarId is string && data.avatarId.size() <= 20 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidCircle(data) {
+      return data.keys().hasAll(['title', 'description', 'isActive', 'participantCount', 'createdAt']) &&
+             data.title is string && data.title.size() <= 100 &&
+             data.description is string && data.description.size() <= 500 &&
+             data.isActive is bool &&
+             data.participantCount is int &&
+             data.createdAt == request.time;
+    }
+
+    function isValidCircleMember(data) {
+      return data.keys().hasAll(['userId', 'joinedAt']) &&
+             data.userId == request.auth.uid &&
+             data.joinedAt == request.time;
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll(['senderId', 'type', 'createdAt']) &&
+             data.senderId == request.auth.uid &&
+             data.type in ['signal', 'message', 'join', 'leave'] &&
+             data.createdAt == request.time;
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['participants', 'status', 'createdAt']) &&
+             data.participants is list && data.participants.size() >= 1 &&
+             data.participants[0] is string &&
+             data.status in ['pending', 'active', 'ended'] &&
+             data.createdAt == request.time;
+    }
+
+    // Collection Rules
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.anonymousName != null; 
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['anonymousName', 'avatarId']);
+    }
+
+    match /circles/{circleId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidCircle(incoming());
+      allow update: if isSignedIn() && (
+        // Action: Join/Leave (updating participant count)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['participantCount']) && isValidCircle(incoming()))
+      );
+    }
+
+    match /circles/{circleId}/members/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && isValidCircleMember(incoming());
+      allow delete: if isOwner(userId);
+    }
+
+    match /circles/{circleId}/events/{eventId} {
+      allow read: if isSignedIn() && exists(/databases/$(database)/documents/circles/$(circleId)/members/$(request.auth.uid));
+      allow create: if isSignedIn() && exists(/databases/$(database)/documents/circles/$(circleId)/members/$(request.auth.uid)) && isValidEvent(incoming());
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn() && request.auth.uid in incoming().participants && isValidSession(incoming());
+      allow update: if isSignedIn() && request.auth.uid in resource.data.participants && isValidSession(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'lastUpdateTime']);
+    }
+
+    match /sessions/{sessionId}/events/{eventId} {
+      allow read: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/sessions/$(sessionId)).data.participants;
+      allow create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/sessions/$(sessionId)).data.participants && isValidEvent(incoming());
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "مساحة - مساحة آمنة تسمعك",
+  "description": "منصة يمنية للصحة النفسية والدعم المجتمعي، توفر جلسات صوتية مجهولة ودوائر دعم سرية وتمارين تنفس.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "Real-time voice support",
+    "Breathing exercises",
+    "Anonymous support groups"
+  ]
+}
